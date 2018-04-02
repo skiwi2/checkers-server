@@ -1,15 +1,17 @@
 module Checkers
-    ( 
+    (
     ) where
 
 import qualified Data.Map as Map
 
 data Position = Position Int Int deriving (Eq, Ord)
 
-data Color = Black | White
+data Color = Black | White deriving (Eq)
 data Piece = Men Color | King Color
 
 newtype Board = Board (Map.Map Position Piece)
+
+data Move = Move Position Color Position
 
 startBoard :: Board
 startBoard = Board (Map.fromList (
@@ -27,3 +29,28 @@ startBoard = Board (Map.fromList (
         right               = [1, 3, 5, 7, 9]
         makePos row col     = Position col row
         makeTuple color pos = (pos, Men color)
+
+isValidPosition :: Position -> Board -> Bool
+isValidPosition pos@(Position x y) (Board m) = x >= 0 && x <= 9 && y >= 0 && y <= 9 && Map.notMember pos m
+
+isValidMove :: Move -> Board -> Bool
+isValidMove (Move _ _ to) = isValidPosition to
+
+getMoves :: Board -> [Move]
+getMoves board@(Board m) = filter (`isValidMove` board) $ getMoves' $ Map.toList m
+
+getMoves' :: [(Position, Piece)] -> [Move]
+getMoves' = foldr ((++) . getMoves'') []
+
+getMoves'' :: (Position, Piece) -> [Move]
+getMoves'' (pos@(Position x y), piece) = case piece of
+    Men White   -> map (Move pos White) [Position (y + 1) (x - 1), Position (y + 1) (x + 1)]
+    Men Black   -> map (Move pos Black) [Position (y - 1) (x - 1), Position (y - 1) (x - 1)]
+    King White  -> []
+    King Black  -> []
+
+getMovesByColor :: Board -> Color -> [Move]
+getMovesByColor board = getMovesByColor' $ getMoves board
+
+getMovesByColor' :: [Move] -> Color -> [Move]
+getMovesByColor' moves color = filter (\(Move _ color' _) -> color == color') moves
