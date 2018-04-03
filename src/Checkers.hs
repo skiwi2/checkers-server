@@ -37,17 +37,14 @@ isValidMove :: Move -> Board -> Bool
 isValidMove (Move _ _ to) = isValidPosition to
 
 getMoves :: Board -> [Move]
-getMoves board@(Board m) = filter (`isValidMove` board) $ getMoves' $ Map.toList m
+getMoves board@(Board m) = filter (`isValidMove` board) $ concatMap getMoves' $ Map.toList m
 
-getMoves' :: [(Position, Piece)] -> [Move]
-getMoves' = foldr ((++) . getMoves'') []
-
-getMoves'' :: (Position, Piece) -> [Move]
-getMoves'' (pos@(Position x y), piece) = case piece of
+getMoves' :: (Position, Piece) -> [Move]
+getMoves' (pos@(Position x y), piece) = case piece of
     Men White   -> map (Move pos White) [Position (y + 1) (x - 1), Position (y + 1) (x + 1)]
     Men Black   -> map (Move pos Black) [Position (y - 1) (x - 1), Position (y - 1) (x - 1)]
-    King White  -> error "TODO: getMoves'' King White"
-    King Black  -> error "TODO: getMoves'' King Black"
+    King White  -> error "TODO: getMoves' King White"
+    King Black  -> error "TODO: getMoves' King Black"
 
 getMovesByColor :: Board -> Color -> [Move]
 getMovesByColor board = getMovesByColor' $ getMoves board
