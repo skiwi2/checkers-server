@@ -7,11 +7,14 @@ import qualified Data.Map as Map
 data Position = Position Int Int deriving (Eq, Ord)
 
 data Color = Black | White deriving (Eq)
-data Piece = Men Color | King Color
+data PieceKind = Men | King
+data Piece = Piece PieceKind Color
 
 newtype Board = Board (Map.Map Position Piece)
 
-data Move = Move Position Color Position
+data Action = PieceMove | PieceCapture Position
+-- Move (from, by, how, becomes king, to)
+data Move = Move Position Color Action Bool Position
 
 startBoard :: Board
 startBoard = Board (Map.fromList (
@@ -28,26 +31,59 @@ startBoard = Board (Map.fromList (
         left                = [0, 2, 4, 6, 8]
         right               = [1, 3, 5, 7, 9]
         makePos row col     = Position col row
-        makeTuple color pos = (pos, Men color)
+        makeTuple color pos = (pos, Piece Men color)
 
-isValidPosition :: Position -> Board -> Bool
-isValidPosition pos@(Position x y) (Board m) = x >= 0 && x <= 9 && y >= 0 && y <= 9 && Map.notMember pos m
+isValidPosition :: Position -> Bool
+isValidPosition (Position x y) = x >= 0 && x <= 9 && y >= 0 && y <= 9
 
 isValidMove :: Move -> Board -> Bool
-isValidMove (Move _ _ to) = isValidPosition to
+isValidMove (Move _ color action _ to) (Board m) = isValidPosition to && Map.notMember to m && validAction action
+    where
+        validAction act     = case act of
+            PieceMove           -> True
+            PieceCapture pos    -> opponentOnMap pos 
+        opponentOnMap pos   = case Map.lookup pos m of
+            Nothing                 -> False
+            Just (Piece _ pColor)   -> pColor == opposingColor color
+
+opposingColor :: Color -> Color
+opposingColor color = case color of
+    White   -> Black
+    Black   -> White
 
 getMoves :: Board -> [Move]
-getMoves board@(Board m) = filter (`isValidMove` board) $ concatMap getMoves' $ Map.toList m
+getMoves board@(Board m) = do
+    let moves = filter (`isValidMove` board) $ concatMap getMoves' $ Map.toList m
+    if any isCapturingMove moves
+        then filter isCapturingMove moves
+        else moves
+    where
+        isCapturingMove (Move _ _ action _ _) = case action of
+            PieceMove       -> False
+            PieceCapture _  -> True
 
 getMoves' :: (Position, Piece) -> [Move]
 getMoves' (pos@(Position x y), piece) = case piece of
-    Men White   -> map (Move pos White) [Position (y + 1) (x - 1), Position (y + 1) (x + 1)]
-    Men Black   -> map (Move pos Black) [Position (y - 1) (x - 1), Position (y - 1) (x - 1)]
-    King White  -> error "TODO: getMoves' King White"
-    King Black  -> error "TODO: getMoves' King Black"
+    Piece Men White     -> map (makeMove pos White PieceMove) [Position (x + 1) (y - 1), Position (x + 1) (y + 1)] ++ captureMoves pos White
+    Piece Men Black     -> map (makeMove pos Black PieceMove) [Position (x - 1) (y - 1), Position (x - 1) (y - 1)] ++ captureMoves pos Black
+    Piece King White    -> error "TODO: getMoves' King White"
+    Piece King Black    -> error "TODO: getMoves' King Black"
+    where
+        captureMoves from color = [
+            makeMove from color (PieceCapture (Position (x + 1) (y - 1))) (Position (x + 2) (y - 2)),
+            makeMove from color (PieceCapture (Position (x + 1) (y + 1))) (Position (x + 2) (y + 2)),
+            makeMove from color (PieceCapture (Position (x - 1) (y - 1))) (Position (x + 2) (y - 2)),
+            makeMove from color (PieceCapture (Position (x - 1) (y + 1))) (Position (x - 2) (y + 2))]
+
+makeMove :: Position -> Color -> Action -> Position -> Move
+makeMove from color action to@(Position _ y) = Move from color action becomesKing to
+    where
+        becomesKing = case color of
+            White   -> y == 9
+            Black   -> y == 0
 
 getMovesByColor :: Board -> Color -> [Move]
 getMovesByColor board = getMovesByColor' $ getMoves board
 
 getMovesByColor' :: [Move] -> Color -> [Move]
-getMovesByColor' moves color = filter (\(Move _ color' _) -> color == color') moves
+getMovesByColor' moves color = filter (\(Move _ color' _ _ _) -> color == color') moves
