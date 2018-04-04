@@ -4,21 +4,21 @@ module Game
 
 import Board
 
-data Game = Game Board Color deriving (Eq, Show)
+data Game = Game Board Player deriving (Eq, Show)
 
-startGame :: Color -> Game
+startGame :: Player -> Game
 startGame = Game startBoard
 
-getPlayerMoves :: Color -> Game -> [Move]
-getPlayerMoves color (Game board _) = filter (isMoveBy color) (getMoves board)
+getPlayerMoves :: Player -> Game -> [Move]
+getPlayerMoves player (Game board _) = filter (isMoveBy player) (getMoves board)
 
 processMove :: Move -> Game -> Game
-processMove move (Game board color) = do
+processMove move (Game board player) = do
     let board' = applyMove move board
-    if hasCaptureMoves color board'
-        then Game board' color
-        else Game board' (getOpponent color)
+    if hasCaptureMoves player board'
+        then Game board' player
+        else Game board' (getOpponent player)
 
-getOpponent :: Color -> Color
+getOpponent :: Player -> Player
 getOpponent White = Black
 getOpponent Black = White
