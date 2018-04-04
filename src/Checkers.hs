@@ -4,17 +4,17 @@ module Checkers
 
 import qualified Data.Map as Map
 
-data Position = Position Int Int deriving (Eq, Ord)
+data Position = Position Int Int deriving (Eq, Ord, Show)
 
-data Color = Black | White deriving (Eq)
-data PieceKind = Men | King
-data Piece = Piece PieceKind Color
+data Color = Black | White deriving (Eq, Show)
+data PieceKind = Men | King deriving (Eq, Show)
+data Piece = Piece PieceKind Color deriving (Eq, Show)
 
-newtype Board = Board (Map.Map Position Piece)
+newtype Board = Board (Map.Map Position Piece) deriving (Eq, Show)
 
-data Action = PieceMove | PieceCapture Position
+data Action = PieceMove | PieceCapture Position deriving (Eq, Show)
 -- Move (from, by, how, becomes king, to)
-data Move = Move Position Color Action Bool Position
+data Move = Move Position Color Action Bool Position deriving (Eq, Show)
 
 startBoard :: Board
 startBoard = Board (Map.fromList (
@@ -44,12 +44,7 @@ isValidMove (Move _ color action _ to) (Board m) = isValidPosition to && Map.not
             PieceCapture pos    -> opponentOnMap pos 
         opponentOnMap pos   = case Map.lookup pos m of
             Nothing                 -> False
-            Just (Piece _ pColor)   -> pColor == opposingColor color
-
-opposingColor :: Color -> Color
-opposingColor color = case color of
-    White   -> Black
-    Black   -> White
+            Just (Piece _ color')   -> color' /= color
 
 getMoves :: Board -> [Move]
 getMoves board@(Board m) = do
