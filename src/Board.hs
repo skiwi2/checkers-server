@@ -1,5 +1,16 @@
-module Checkers
-    (
+module Board
+    ( Board
+    , Position
+    , Piece
+    , PieceKind
+    , Color(..)
+    , Action
+    , Move
+    , startBoard
+    , getMoves
+    , isMoveBy
+    , hasCaptureMoves
+    , applyMove
     ) where
 
 import qualified Data.Map as Map
@@ -36,6 +47,7 @@ startBoard = Board (Map.fromList (
 isValidPosition :: Position -> Bool
 isValidPosition (Position x y) = x >= 0 && x <= 9 && y >= 0 && y <= 9
 
+-- TODO for kings that capture there may only be one piece in between the to and from position
 isValidMove :: Move -> Board -> Bool
 isValidMove (Move _ color action _ to) (Board m) = isValidPosition to && Map.notMember to m && validAction action
     where
@@ -46,16 +58,25 @@ isValidMove (Move _ color action _ to) (Board m) = isValidPosition to && Map.not
             Nothing                 -> False
             Just (Piece _ color')   -> color' /= color
 
+applyMove :: Move -> Board -> Board
+applyMove (Move from _ action becomesKing to) (Board m) = case action of
+    PieceMove               -> Board $ movePiece
+    PieceCapture capturePos -> Board $ Map.delete capturePos m
+    where
+        movePiece = do
+            let piece = m Map.! from
+            Map.insert to (promotePiece piece) $ Map.delete from m
+        promotePiece (Piece Men color) = if becomesKing
+            then Piece King color
+            else Piece Men color
+        promotePiece p@(Piece King _) = p
+
 getMoves :: Board -> [Move]
 getMoves board@(Board m) = do
     let moves = filter (`isValidMove` board) $ concatMap getMoves' $ Map.toList m
     if any isCapturingMove moves
         then filter isCapturingMove moves
         else moves
-    where
-        isCapturingMove (Move _ _ action _ _) = case action of
-            PieceMove       -> False
-            PieceCapture _  -> True
 
 getMoves' :: (Position, Piece) -> [Move]
 getMoves' (pos@(Position x y), piece) = case piece of
@@ -70,6 +91,9 @@ getMoves' (pos@(Position x y), piece) = case piece of
             makeMove from color (PieceCapture (Position (x - 1) (y - 1))) (Position (x + 2) (y - 2)),
             makeMove from color (PieceCapture (Position (x - 1) (y + 1))) (Position (x - 2) (y + 2))]
 
+hasCaptureMoves :: Color -> Board -> Bool
+hasCaptureMoves color board = any isCapturingMove $ filter (isMoveBy color) $ getMoves board
+
 makeMove :: Position -> Color -> Action -> Position -> Move
 makeMove from color action to@(Position _ y) = Move from color action becomesKing to
     where
@@ -77,8 +101,9 @@ makeMove from color action to@(Position _ y) = Move from color action becomesKin
             White   -> y == 9
             Black   -> y == 0
 
-getMovesByColor :: Board -> Color -> [Move]
-getMovesByColor board = getMovesByColor' $ getMoves board
+isMoveBy :: Color -> Move -> Bool
+isMoveBy color' (Move _ color _ _ _) = color == color'
 
-getMovesByColor' :: [Move] -> Color -> [Move]
-getMovesByColor' moves color = filter (\(Move _ color' _ _ _) -> color == color') moves
+isCapturingMove :: Move -> Bool
+isCapturingMove (Move _ _ PieceMove _ _) = False
+isCapturingMove (Move _ _ (PieceCapture _) _ _) = True

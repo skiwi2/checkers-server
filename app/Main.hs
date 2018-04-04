@@ -1,6 +1,6 @@
 module Main where
 
-import Checkers
+import Game
 
 main :: IO ()
 main = return ()
